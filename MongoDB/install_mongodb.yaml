@@ -1,1 +1,48 @@
+---
+- hosts: mongodb
+  become: yes 
+  become_method: sudo
+  tasks:
+    - name: Remove default nameserver entry
+      lineinfile:
+        path: /etc/resolv.conf
+        state: absent
+        regexp: '^nameserver\s+'
+    - name: Update DNS nameservers
+      lineinfile:
+        path: /etc/resolv.conf
+        line: "nameserver 178.22.122.100"
+        state: present
+    - name: Update apt repo and cache on all Debian/Ubuntu boxes
+      apt: update_cache=yes force_apt_get=yes cache_valid_time=3600
+    - name: Install Docker dependencies
+      apt:
+       name: "{{ item }}"
+       state: present
+      loop:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+    - name: Add Docker GPG key
+      apt_key:
+       url: https://download.docker.com/linux/ubuntu/gpg
+       state: present
+    - name: Add Docker repository
+      apt_repository:
+       repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+       state: present
+    - name: Install Docker
+      apt:
+       name: python3-docker
+       state: present
 
+#    - name: Add user to Docker group
+#      user:
+#      name: "{{ ansible_user }}"
+#     append: true
+    - name: Create a network
+      docker_network:
+        name: mongoCluster
+    - name: Run Mongodbb server
+      shell: docker run -d --rm -p 27017:27017 --name mongo1 --network mongoCluster mongo:5 mongod --replSet myReplicaSet --bind_ip localhost,mongo1
