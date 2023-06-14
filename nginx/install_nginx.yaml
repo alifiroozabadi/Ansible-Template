@@ -1,1 +1,23 @@
-
+---
+- hosts: nginx
+  become: yes 
+  become_method: sudo
+  tasks:
+    - name: Remove default nameserver entry
+      lineinfile:
+        path: /etc/resolv.conf
+        state: absent
+        regexp: '^nameserver\s+'
+    - name: Update DNS nameservers
+      lineinfile:
+        path: /etc/resolv.conf
+        line: "nameserver 178.22.122.100"
+        state: present
+    - name: Update apt repo and cache on all Debian/Ubuntu boxes
+      apt: update_cache=yes force_apt_get=yes cache_valid_time=3600
+    - name: install nginx
+      apt: name=nginx state=latest
+    - name: start nginx
+      service:
+          name: nginx
+          state: started
